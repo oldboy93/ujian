@@ -34,7 +34,7 @@ export default async function AdminLayout({
               <Calendar className="h-3 w-3 text-[#3eb7b3]" />
               {formattedDate}
             </div>
-          </div>s
+          </div>
         </div>
 
         {/* .header-right */}

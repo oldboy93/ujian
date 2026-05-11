@@ -82,7 +82,7 @@ export function QuizRunner({
       }
       return true;
    });
-   const [prayerTime, setPrayerTime] = useState(30);
+   const [prayerTime, setPrayerTime] = useState(10);
    const [showRules, setShowRules] = useState(false);
 
    // Sinkronisasi Question Index ke localStorage

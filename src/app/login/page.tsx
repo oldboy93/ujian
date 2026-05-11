@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, Eye } from "lucide-react";
 import Image from "next/image";
+import { LoginSubmitButton } from "@/components/login/LoginSubmitButton";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
@@ -86,10 +87,7 @@ export default async function LoginPage(props: {
                 </a>
               </div>
 
-              {/* Action Button */}
-              <Button type="submit" className="w-full h-[52px] rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-base tracking-wide mt-4 shadow-md shadow-blue-600/20 transition-all active:scale-[0.98]">
-                Masuk
-              </Button>
+              <LoginSubmitButton />
 
               {/* Divider */}
               <div className="relative flex py-3 items-center">
