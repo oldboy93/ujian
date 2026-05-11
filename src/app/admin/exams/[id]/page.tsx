@@ -32,7 +32,6 @@ export default async function ExamPage({ params }: PageProps) {
         orderBy: { createdAt: "asc" }
       },
       participants: {
-        include: { answers: true },
         orderBy: { joinedAt: "desc" }
       }
     }

@@ -7,14 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription,
-  DialogTrigger 
-} from "@/components/ui/dialog";
-import { 
   User, 
   ShieldAlert, 
   Clock, 
@@ -22,14 +14,17 @@ import {
   Eye, 
   FileText,
   Save,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft,
+  ListFilter
 } from "lucide-react";
 import { updateEssayScore } from "@/app/exam/actions";
+import { getParticipantAnswers } from "@/app/admin/exams/[id]/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 type ParticipantWithAnswers = Participant & {
-  answers: ParticipantAnswer[];
+  answers?: ParticipantAnswer[];
 };
 
 interface ParticipantRecapProps {
@@ -39,9 +34,11 @@ interface ParticipantRecapProps {
 }
 
 export function ParticipantRecap({ participants, maxViolations, questions }: ParticipantRecapProps) {
-  const [open, setOpen] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<ParticipantWithAnswers | null>(null);
+  const [currentAnswers, setCurrentAnswers] = useState<ParticipantAnswer[]>([]);
+  const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
   const [gradingStates, setGradingStates] = useState<Record<string, { loading: boolean, val: number }>>({});
+  const [filterType, setFilterType] = useState<"ALL" | "PG" | "ESSAY">("ALL");
 
   if (!participants || participants.length === 0) {
     return (
@@ -57,41 +54,285 @@ export function ParticipantRecap({ participants, maxViolations, questions }: Par
 
    const router = useRouter();
 
-   const handleGrading = async (qId: string, maxPts: number) => {
-      if (!selectedParticipant) return;
-      
-      const stateVal = gradingStates[`${selectedParticipant.id}_${qId}`]?.val;
-      const finalScore = stateVal === undefined ? 0 : Number(stateVal);
+    const handleOpenEvaluation = async (participant: ParticipantWithAnswers) => {
+       setSelectedParticipant(participant);
+       setIsLoadingAnswers(true);
+       setCurrentAnswers([]);
+       
+       try {
+           const answers = await getParticipantAnswers(participant.id);
+           setCurrentAnswers(answers);
+       } catch (e) {
+           console.error(e);
+           toast.error("Gagal memuat jawaban peserta.");
+       } finally {
+           setIsLoadingAnswers(false);
+       }
+    };
 
-      if (finalScore < 0 || finalScore > maxPts) {
-          toast.error(`Skor tidak valid`, {
-             description: `Skor tidak boleh kurang dari 0 atau melebihi batas maksimal soal (${maxPts} Poin).`
-          });
-          return;
-      }
+    const handleGrading = async (qId: string, maxPts: number) => {
+       if (!selectedParticipant) return;
+       
+       const stateVal = gradingStates[`${selectedParticipant.id}_${qId}`]?.val;
+       const finalScore = stateVal === undefined ? 0 : Number(stateVal);
 
-      setGradingStates(prev => ({ 
-          ...prev, 
-          [`${selectedParticipant.id}_${qId}`]: { loading: true, val: finalScore } 
-      }));
+       if (finalScore < 0 || finalScore > maxPts) {
+           toast.error(`Skor tidak valid`, {
+              description: `Skor tidak boleh kurang dari 0 atau melebihi batas maksimal soal (${maxPts} Poin).`
+           });
+           return;
+       }
 
-      try {
-          await updateEssayScore(selectedParticipant.id, qId, finalScore);
-          toast.success("Berhasil", { description: "Nilai essay berhasil diperbarui!" });
-          router.refresh(); 
-      } catch (e) {
-          console.error(e);
-          toast.error("Gagal", { description: "Gagal memperbarui nilai essay." });
-      } finally {
-          setGradingStates(prev => ({ 
-              ...prev, 
-              [`${selectedParticipant.id}_${qId}`]: { loading: false, val: finalScore } 
-          }));
-      }
-   };
+       setGradingStates(prev => ({ 
+           ...prev, 
+           [`${selectedParticipant.id}_${qId}`]: { loading: true, val: finalScore } 
+       }));
 
+       try {
+           await updateEssayScore(selectedParticipant.id, qId, finalScore);
+           toast.success("Berhasil", { description: "Nilai essay berhasil diperbarui!" });
+           
+           setCurrentAnswers(prev => prev.map(ans => 
+               ans.questionId === qId ? { ...ans, scoreEarned: finalScore, isCorrect: finalScore > 0 } : ans
+           ));
+
+           router.refresh(); 
+       } catch (e) {
+           console.error(e);
+           toast.error("Gagal", { description: "Gagal memperbarui nilai essay." });
+       } finally {
+           setGradingStates(prev => ({ 
+               ...prev, 
+               [`${selectedParticipant.id}_${qId}`]: { loading: false, val: finalScore } 
+           }));
+       }
+    };
+
+  // ==========================================================================
+  // VIEW 2: DETAIL PENILAIAN (FULL-VIEW PAGE EMBEDDED)
+  // ==========================================================================
+  if (selectedParticipant) {
+    return (
+      <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+         {/* HEADER EVALUASI */}
+         <div className="bg-white border border-slate-100 rounded-[32px] p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-6">
+               <div className="h-20 w-20 bg-slate-50 rounded-[28px] shadow-sm border border-slate-100 flex items-center justify-center shrink-0 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-[#3eb7b3]/5" />
+                  <User className="h-10 w-10 text-[#3eb7b3] relative z-10" />
+               </div>
+               <div>
+                  <div className="text-xs font-black text-[#3eb7b3] uppercase tracking-[0.15em] mb-1.5">Penilaian Detail Peserta</div>
+                  <h2 className="text-3xl md:text-4xl font-black text-[#1e293b] tracking-tight leading-tight">{selectedParticipant.name}</h2>
+                  <div className="flex flex-wrap items-center gap-3 md:gap-5 mt-3">
+                     <Badge className={`font-black shadow-none rounded-xl px-3 py-1.5 tracking-wide text-xs border-2 ${selectedParticipant.status === "SUBMITTED" ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100"}`}>
+                        {selectedParticipant.status === "SUBMITTED" ? "SELESAI UJIAN" : "SEDANG MENGERJAKAN"}
+                     </Badge>
+                     <div className="hidden md:block h-1.5 w-1.5 rounded-full bg-slate-200" />
+                     <div className="flex items-center gap-2 bg-[#1e293b] text-white px-4 py-1.5 rounded-xl text-sm font-bold shadow-md shadow-slate-200">
+                        <span className="opacity-70 text-[11px] uppercase tracking-wider">Skor Saat Ini:</span>
+                        <span className="text-base font-black">{(Number(selectedParticipant.totalScore) || 0).toFixed(1)}</span>
+                     </div>
+                  </div>
+               </div>
+            </div>
+            
+            <Button 
+               variant="outline" 
+               className="h-14 px-8 rounded-2xl gap-3 font-black text-slate-700 border-slate-200 hover:bg-[#1e293b] hover:text-white hover:border-[#1e293b] transition-all duration-300 shadow-sm shrink-0 text-base"
+               onClick={() => {
+                  setSelectedParticipant(null);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+               }}
+            >
+               <ArrowLeft className="h-5 w-5" />
+               Kembali ke Tabel
+            </Button>
+         </div>
+
+         {/* DAFTAR JAWABAN DENGAN UKURAN PENUH (NATIVE SCROLL) */}
+         <div className="flex flex-col gap-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4">
+               <div className="flex items-center gap-3">
+                  <div className="h-8 w-1.5 bg-[#3eb7b3] rounded-full" />
+                  <h3 className="font-black text-2xl text-[#1e293b] tracking-tight">Evaluasi Butir Soal</h3>
+               </div>
+
+               {/* FILTER CONTROLS */}
+               <div className="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-[20px] border border-slate-200/50 shadow-inner w-fit">
+                  {[
+                     { id: "ALL", label: "Semua", icon: ListFilter },
+                     { id: "PG", label: "Pilihan Ganda", icon: CheckCircle },
+                     { id: "ESSAY", label: "Essay", icon: FileText }
+                  ].map((btn) => {
+                     const Icon = btn.icon;
+                     const isActive = filterType === btn.id;
+                     return (
+                        <button
+                           key={btn.id}
+                           onClick={() => setFilterType(btn.id as any)}
+                           className={`flex items-center gap-2 px-5 py-2.5 rounded-[14px] text-sm font-bold transition-all duration-300 ${
+                              isActive 
+                                 ? "bg-white text-[#1e293b] shadow-md shadow-slate-200/50 ring-1 ring-slate-200" 
+                                 : "text-slate-500 hover:text-[#1e293b] hover:bg-white/50"
+                           }`}
+                        >
+                           <Icon className={`h-4 w-4 ${isActive ? "text-[#3eb7b3]" : "opacity-60"}`} />
+                           {btn.label}
+                        </button>
+                     );
+                  })}
+               </div>
+            </div>
+
+            {isLoadingAnswers ? (
+               <div className="p-32 border-2 border-dashed border-slate-200 rounded-[40px] flex flex-col items-center justify-center text-slate-400 bg-white/50">
+                  <Clock className="h-14 w-14 animate-spin mb-6 text-[#3eb7b3]" />
+                  <p className="text-2xl font-black text-[#1e293b]">Sedang Memuat Jawaban</p>
+                  <p className="text-base font-medium text-slate-500 mt-2">Mohon tunggu beberapa detik...</p>
+               </div>
+            ) : (
+               <div className="grid gap-8">
+                  {questions.map((q, origIdx) => ({ q, origIdx }))
+                   .filter(({ q }) => filterType === "ALL" || q.type === filterType)
+                   .map(({ q, origIdx }) => {
+                     const ans = currentAnswers.find(a => a.questionId === q.id);
+                     const isEssay = q.type === "ESSAY";
+                     
+                     const key = `${selectedParticipant.id}_${q.id}`;
+                     const currentVal = gradingStates[key]?.val ?? (ans?.scoreEarned || 0);
+                     const isLoading = gradingStates[key]?.loading || false;
+
+                     return (
+                        <div key={q.id} className="border-2 border-slate-100 shadow-[0_8px_40px_rgba(0,0,0,0.03)] rounded-[40px] overflow-hidden bg-white group transition-all duration-500 hover:shadow-[0_15px_50px_rgba(0,0,0,0.06)] hover:border-[#3eb7b3]/10">
+                           <div className="p-8 md:p-12 flex flex-col gap-8">
+                              {/* HEADER SOAL */}
+                              <div className="flex flex-wrap justify-between items-center gap-4 border-b-2 border-slate-50 pb-6">
+                                 <div className="flex items-center gap-4">
+                                    <div className="h-12 w-12 bg-[#1e293b] text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-slate-300 group-hover:scale-110 transition-transform">
+                                       {origIdx + 1}
+                                    </div>
+                                    <Badge className={`text-xs font-black tracking-widest px-4 py-1.5 rounded-xl border-2 ${isEssay ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-indigo-50 text-indigo-600 border-indigo-100"}`}>
+                                       {isEssay ? "ESSAY" : "PILIHAN GANDA"}
+                                    </Badge>
+                                 </div>
+                                 <div className="bg-slate-50 px-5 py-2 rounded-2xl text-sm font-black text-slate-600 border border-slate-100 shadow-inner tracking-wider flex items-center gap-2">
+                                    BOBOT SOAL: <span className="text-[#1e293b] text-base">{q.pointCorrect}</span> POIN
+                                 </div>
+                              </div>
+
+                              {/* KONTEN PERTANYAAN */}
+                              <div className="font-bold text-[#1e293b] text-xl md:text-2xl leading-relaxed py-2 px-2 max-w-4xl">
+                                 {q.content}
+                              </div>
+
+                              {/* BLOK JAWABAN PESERTA - UKURAN PENUH & SCROLL NATIVE */}
+                              <div className="bg-slate-50 rounded-[32px] p-8 md:p-10 border border-slate-100">
+                                 <div className="text-[12px] uppercase font-black text-[#3eb7b3] mb-5 flex items-center gap-2.5 tracking-[0.2em]">
+                                    <FileText className="h-5 w-5" /> JAWABAN TERTULIS PESERTA:
+                                 </div>
+                                 {ans?.answerText ? (
+                                    <div className="text-lg font-medium text-[#334155] whitespace-pre-wrap break-words leading-loose bg-white p-8 rounded-2xl shadow-sm border border-slate-200/60">
+                                       {isEssay ? ans.answerText : <span className="font-black text-[#1e293b] text-2xl tracking-tight">{ans.answerText}</span>}
+                                    </div>
+                                 ) : (
+                                    <div className="text-lg font-black text-slate-400 italic bg-white/50 py-12 rounded-3xl border-4 border-dashed border-slate-100 text-center">
+                                       KOSONG / TIDAK MENJAWAB
+                                    </div>
+                                 )}
+                              </div>
+
+                              {/* PANEL INPUT NILAI */}
+                              <div className="pt-6 border-t-2 border-slate-50">
+                                 {!isEssay ? (
+                                    <div className="flex items-center gap-4 bg-slate-50 px-8 py-5 rounded-[24px] w-fit border border-slate-100 shadow-sm">
+                                       <span className="text-base font-bold text-slate-500">Skor Otomatis Sistem:</span>
+                                       <span className={`text-2xl font-black ${ans?.isCorrect ? "text-emerald-600" : "text-rose-600"}`}>
+                                          {ans?.scoreEarned || 0} Poin
+                                       </span>
+                                       {ans?.isCorrect ? (
+                                          <CheckCircle className="h-7 w-7 text-emerald-500 fill-emerald-50" />
+                                       ) : (
+                                          <div className="h-7 w-7 rounded-full border-4 border-rose-200 bg-rose-50 flex items-center justify-center font-black text-xs text-rose-600">X</div>
+                                       )}
+                                    </div>
+                                 ) : (
+                                    <div className="flex flex-col lg:flex-row lg:items-center gap-6 w-full bg-white border-2 border-slate-100 p-6 md:p-8 rounded-[32px] shadow-sm group-hover:border-[#3eb7b3]/30 transition-colors">
+                                       <div className="flex-1 flex flex-col md:flex-row md:items-center gap-5">
+                                          <div className="w-full md:w-auto">
+                                             <div className="text-sm font-black text-[#1e293b] mb-2">Input Nilai Akhir (Batas: {q.pointCorrect})</div>
+                                             <div className="flex flex-wrap md:flex-nowrap gap-4 items-center">
+                                                <Input 
+                                                   type="number" 
+                                                   min="0" 
+                                                   step="any"
+                                                   max={q.pointCorrect}
+                                                   className="h-16 w-full md:w-40 rounded-2xl font-black text-center text-2xl border-2 border-slate-200 focus:border-[#3eb7b3] focus:ring-8 focus:ring-[#3eb7b3]/10 transition-all bg-slate-50 focus:bg-white" 
+                                                   placeholder="0.0"
+                                                   value={currentVal}
+                                                   onChange={(e) => setGradingStates(prev => ({ 
+                                                       ...prev, 
+                                                       [key]: { loading: false, val: Number(e.target.value) } 
+                                                   }))}
+                                                   disabled={isLoading}
+                                                />
+                                                <Button 
+                                                   size="lg"
+                                                   className="h-16 w-full md:w-auto px-10 gap-3 bg-[#1e293b] hover:bg-black text-white font-black text-lg rounded-2xl shadow-xl shadow-slate-200 hover:shadow-2xl hover:scale-[1.02] active:scale-95 transition-all duration-300"
+                                                   onClick={() => handleGrading(q.id, q.pointCorrect)}
+                                                   disabled={isLoading}
+                                                >
+                                                   {isLoading ? (
+                                                      <Clock className="h-6 w-6 animate-spin" />
+                                                   ) : (
+                                                      <Save className="h-6 w-6" />
+                                                   )}
+                                                   {isLoading ? "Menyimpan..." : "Simpan Nilai"}
+                                                </Button>
+                                             </div>
+                                          </div>
+                                       </div>
+                                       
+                                       <div className="hidden lg:block shrink-0 h-20 w-0.5 bg-slate-100 my-2" />
+
+                                       <div className="shrink-0 bg-[#ecfdf5] text-[#047857] px-10 py-5 rounded-[24px] border-2 border-[#bbf7d0] font-black text-center flex flex-col items-center min-w-[160px] shadow-inner">
+                                          <span className="text-[12px] uppercase text-[#059669]/80 font-black mb-1 tracking-widest">Ter-Simpan</span>
+                                          <span className="text-4xl tracking-tight">{(ans?.scoreEarned || 0)}</span>
+                                       </div>
+                                    </div>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+                     );
+                  })}
+               </div>
+            )}
+
+            <div className="flex justify-center pt-10 pb-20">
+               <Button 
+                  variant="outline" 
+                  size="lg"
+                  className="h-16 px-12 rounded-[24px] gap-4 font-black text-xl text-slate-700 border-2 border-slate-200 hover:bg-[#1e293b] hover:text-white hover:border-[#1e293b] shadow-lg transition-all duration-300 active:scale-95"
+                  onClick={() => {
+                     setSelectedParticipant(null);
+                     window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+               >
+                  <ArrowLeft className="h-6 w-6" />
+                  Selesai & Kembali
+               </Button>
+            </div>
+         </div>
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // VIEW 1: TABEL DAFTAR PESERTA (HALAMAN UTAMA)
+  // ==========================================================================
   return (
-    <div className="bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden animate-in fade-in duration-500">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -154,7 +395,7 @@ export function ParticipantRecap({ participants, maxViolations, questions }: Par
                      <span className={`text-lg font-black ${
                         p.status === "SUBMITTED" ? "text-[#1e293b]" : "text-slate-300"
                      }`}>
-                        {p.totalScore.toFixed(1)}
+                        {(Number(p.totalScore) || 0).toFixed(1)}
                      </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -162,10 +403,7 @@ export function ParticipantRecap({ participants, maxViolations, questions }: Par
                         variant="outline" 
                         size="sm" 
                         className="h-9 gap-2 rounded-xl border-slate-200 font-bold text-slate-600 hover:bg-[#3eb7b3] hover:text-white hover:border-[#3eb7b3] transition-all"
-                        onClick={() => {
-                            setSelectedParticipant(p);
-                            setOpen(true);
-                        }}
+                        onClick={() => handleOpenEvaluation(p)}
                      >
                         <Eye className="h-3.5 w-3.5" />
                         Beri Nilai
@@ -177,138 +415,6 @@ export function ParticipantRecap({ participants, maxViolations, questions }: Par
           </tbody>
         </table>
       </div>
-
-      {/* DIALOG MODAL DETAIL EVALUASI PESERTA */}
-      <Dialog open={open} onOpenChange={setOpen}>
-         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col rounded-[32px] border-none shadow-2xl bg-white overflow-hidden p-0">
-            {selectedParticipant && (
-               <>
-                  <div className="px-8 pt-8 pb-6 bg-slate-50/80 border-b border-slate-100 sticky top-0 z-10">
-                     <DialogHeader className="mb-0">
-                        <div className="flex items-center gap-4">
-                           <div className="h-14 w-14 bg-white rounded-[20px] shadow-sm border border-slate-100 flex items-center justify-center">
-                              <User className="h-7 w-7 text-[#3eb7b3]" />
-                           </div>
-                           <div>
-                              <DialogTitle className="text-2xl font-black text-[#1e293b]">{selectedParticipant.name}</DialogTitle>
-                              <DialogDescription className="font-bold text-slate-400 flex items-center gap-4 mt-1">
-                                 <span>Status: {selectedParticipant.status}</span>
-                                 <span>•</span>
-                                 <span className="text-[#3eb7b3]">Skor Akumulatif: {selectedParticipant.totalScore.toFixed(1)} Poin</span>
-                              </DialogDescription>
-                           </div>
-                        </div>
-                     </DialogHeader>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 bg-[#f8fafc]/50">
-                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Evaluasi Jawaban Butir Soal</h4>
-                     
-                     {questions.map((q, idx) => {
-                        const ans = selectedParticipant.answers.find(a => a.questionId === q.id);
-                        const isEssay = q.type === "ESSAY";
-                        
-                        // Local internal value handle for textfields
-                        const key = `${selectedParticipant.id}_${q.id}`;
-                        const currentVal = gradingStates[key]?.val ?? (ans?.scoreEarned || 0);
-                        const isLoading = gradingStates[key]?.loading || false;
-
-                        return (
-                           <Card key={q.id} className="border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.02)] rounded-[24px] overflow-hidden bg-white">
-                              <div className="p-6 flex flex-col gap-4">
-                                 <div className="flex justify-between items-start gap-4">
-                                    <div className="flex items-center gap-3">
-                                       <span className="h-8 w-8 bg-slate-100 rounded-lg flex items-center justify-center font-black text-slate-600 text-sm">{idx + 1}</span>
-                                       <Badge className={isEssay ? "bg-blue-50 text-blue-600 border-blue-100 shadow-none" : "bg-indigo-50 text-indigo-600 border-indigo-100 shadow-none"}>
-                                          {isEssay ? "ESSAY" : "PG"}
-                                       </Badge>
-                                    </div>
-                                    <div className="text-xs font-bold text-slate-400 uppercase">Bobot: {q.pointCorrect} Poin</div>
-                                 </div>
-
-                                 <div className="font-bold text-[#1e293b] text-sm leading-relaxed">
-                                    {q.content}
-                                 </div>
-
-                                 {/* USER'S SUBMITTED ANSWER */}
-                                 <div className="bg-slate-50 rounded-[16px] p-4 border border-slate-100">
-                                    <div className="text-[10px] uppercase font-black text-slate-400 mb-1 flex items-center gap-1.5">
-                                       <FileText className="h-3 w-3" /> Jawaban Peserta:
-                                    </div>
-                                    {ans?.answerText ? (
-                                       <div className="text-sm font-medium text-[#1e293b] whitespace-pre-wrap break-words">
-                                          {isEssay ? ans.answerText : `Pilihan: ${ans.answerText}`}
-                                       </div>
-                                    ) : (
-                                       <div className="text-sm font-bold text-slate-400 italic">Kosong / Tidak Menjawab</div>
-                                    )}
-                                 </div>
-
-                                 {/* GRADING CONTROLS */}
-                                 <div className="pt-2 flex items-center justify-between border-t border-slate-50 mt-2">
-                                    {!isEssay ? (
-                                       <div className="flex items-center gap-2 text-sm font-bold">
-                                          <span className="text-slate-400">Skor PG Otomatis:</span>
-                                          <span className={ans?.isCorrect ? "text-emerald-600" : "text-rose-500"}>
-                                             {ans?.scoreEarned || 0} Poin
-                                          </span>
-                                       </div>
-                                    ) : (
-                                       <div className="flex items-center gap-4 w-full">
-                                          <div className="flex-1">
-                                             <div className="text-[11px] font-bold text-slate-500 mb-1">Beri Nilai Essay (Maks {q.pointCorrect})</div>
-                                             <div className="flex gap-2">
-                                                <Input 
-                                                   type="number" 
-                                                   min="0" 
-                                                   max={q.pointCorrect}
-                                                   className="h-10 max-w-[120px] rounded-xl font-black text-center" 
-                                                   value={currentVal}
-                                                   onChange={(e) => setGradingStates(prev => ({ 
-                                                       ...prev, 
-                                                       [key]: { loading: false, val: Number(e.target.value) } 
-                                                   }))}
-                                                   disabled={isLoading}
-                                                />
-                                                <Button 
-                                                   size="sm"
-                                                   className="h-10 px-4 gap-2 bg-[#1e293b] hover:bg-black text-white font-bold rounded-xl shadow-md transition-all border-none"
-                                                   onClick={() => handleGrading(q.id, q.pointCorrect)}
-                                                   disabled={isLoading}
-                                                >
-                                                   <Save className="h-3.5 w-3.5" />
-                                                   {isLoading ? "Menyimpan..." : "Simpan"}
-                                                </Button>
-                                             </div>
-                                          </div>
-                                          
-                                          <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl border border-emerald-100 font-black text-sm flex flex-col items-center justify-center">
-                                             <span className="text-[9px] uppercase text-emerald-600/70 font-black mb-0.5">Tercatat</span>
-                                             {ans?.scoreEarned || 0}
-                                          </div>
-                                       </div>
-                                    )}
-                                 </div>
-
-                              </div>
-                           </Card>
-                        );
-                     })}
-                  </div>
-                  
-                  <div className="p-6 bg-white border-t border-slate-100 flex justify-end sticky bottom-0 z-10 mt-auto">
-                     <Button 
-                        variant="secondary" 
-                        className="font-bold text-[#1e293b] bg-[#f1f5f9] hover:bg-[#e2e8f0] rounded-xl px-8" 
-                        onClick={() => setOpen(false)}
-                     >
-                        Tutup Evaluasi
-                     </Button>
-                  </div>
-               </>
-            )}
-         </DialogContent>
-      </Dialog>
     </div>
   );
 }

@@ -34,8 +34,8 @@ model Question {
   content           String       @db.Text
   options           Json?        // Menyimpan array string/objek pilihan ganda
   correctAnswer     String?      // Indeks atau teks jawaban yang benar
-  pointCorrect      Int          @default(1)
-  pointWrong        Int          @default(0)
+  pointCorrect      Float        @default(1)
+  pointWrong        Float        @default(0)
   bonusPerSecond    Float        @default(0) // Tambahan poin per detik tersisa
   timeLimitSeconds  Int          @default(60)
   imageUrl          String?      @db.Text

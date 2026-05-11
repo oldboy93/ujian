@@ -161,9 +161,10 @@ export function EditQuestionDialog({ examId, question }: { examId: string, quest
                 id="pointCorrect" 
                 name="pointCorrect" 
                 type="number" 
+                step="any"
                 defaultValue={question.pointCorrect} 
                 className="rounded-[12px] text-sm" 
-                min={1}
+                min={0}
               />
             </div>
             <div className="space-y-2">
@@ -175,7 +176,7 @@ export function EditQuestionDialog({ examId, question }: { examId: string, quest
                 id="bonusPerSecond" 
                 name="bonusPerSecond" 
                 type="number" 
-                step="0.1"
+                step="any"
                 defaultValue={(question as any).bonusPerSecond || 0} 
                 className="rounded-[12px] text-sm" 
                 min={0}

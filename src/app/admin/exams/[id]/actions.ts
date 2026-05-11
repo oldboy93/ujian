@@ -76,8 +76,8 @@ export async function addQuestion(formData: FormData) {
   const type = formData.get("type") as QuestionType;
   const content = formData.get("content") as string;
   const timeLimitSeconds = parseInt(formData.get("timeLimitSeconds") as string || "60");
-  const pointCorrect = parseInt(formData.get("pointCorrect") as string || "1");
-  const bonusPerSecond = parseFloat(formData.get("bonusPerSecond") as string || "0");
+  const pointCorrect = parseFloat((formData.get("pointCorrect") as string || "1").replace(",", "."));
+  const bonusPerSecond = parseFloat((formData.get("bonusPerSecond") as string || "0").replace(",", "."));
   const imageUrl = formData.get("imageUrl") as string || null;
   
   // Parsing Options if PG
@@ -136,8 +136,8 @@ export async function updateQuestion(questionId: string, formData: FormData) {
   const type = formData.get("type") as QuestionType;
   const content = formData.get("content") as string;
   const timeLimitSeconds = parseInt(formData.get("timeLimitSeconds") as string || "60");
-  const pointCorrect = parseInt(formData.get("pointCorrect") as string || "1");
-  const bonusPerSecond = parseFloat(formData.get("bonusPerSecond") as string || "0");
+  const pointCorrect = parseFloat((formData.get("pointCorrect") as string || "1").replace(",", "."));
+  const bonusPerSecond = parseFloat((formData.get("bonusPerSecond") as string || "0").replace(",", "."));
   const imageUrl = formData.get("imageUrl") as string || null;
   
   // Parsing Options if PG
@@ -198,4 +198,15 @@ export async function deleteQuestion(questionId: string, examId: string) {
   });
 
   revalidatePath(`/admin/exams/${examId}`);
+}
+
+export async function getParticipantAnswers(participantId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  return await prisma.participantAnswer.findMany({
+    where: { participantId },
+    orderBy: { question: { createdAt: "asc" } }
+  });
 }
