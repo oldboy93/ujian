@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,18 +18,19 @@ import { createExam } from "@/app/admin/actions";
 
 export function CreateExamDialog() {
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(formData: FormData) {
-    setLoading(true);
-    try {
-      await createExam(formData);
-      setOpen(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  function handleSubmit(formData: FormData) {
+    startTransition(async () => {
+      try {
+        await createExam(formData);
+        // Note: If successful, it redirects, which will eventually unmount/navigate.
+        // We can close state but keep it open until router confirms navigation if preferred.
+        setOpen(false);
+      } catch (err) {
+        console.error("Creation failed:", err);
+      }
+    });
   }
 
   return (
@@ -58,7 +59,7 @@ export function CreateExamDialog() {
               placeholder="Contoh: Ujian Matematika Semester Genap"
               required
               autoFocus
-              disabled={loading}
+              disabled={isPending}
             />
           </div>
           <div className="space-y-2">
@@ -71,17 +72,17 @@ export function CreateExamDialog() {
               defaultValue={3}
               placeholder="Jumlah pelanggaran sebelum otomatis ditolak"
               required
-              disabled={loading}
+              disabled={isPending}
             />
             <p className="text-[11px] text-muted-foreground">Set ke 0 untuk langsung blokir pada pelanggaran pertama.</p>
           </div>
           <DialogFooter className="pt-4">
-            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={loading}>
+            <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={isPending}>
               Batal
             </Button>
-            <Button type="submit" disabled={loading} className="gap-2">
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? "Membuat..." : "Buat Sesi"}
+            <Button type="submit" disabled={isPending} className="gap-2">
+              {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isPending ? "Membuat..." : "Buat Sesi"}
             </Button>
           </DialogFooter>
         </form>
