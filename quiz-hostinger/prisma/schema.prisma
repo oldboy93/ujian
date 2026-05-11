@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+model Exam {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  pin          String        @unique
+  isActive     Boolean       @default(true)
+  maxViolations Int          @default(3) // Batas toleransi pelanggaran tab-switch
+  createdAt    DateTime      @default(now())
+  createdBy    String        @db.Uuid // Melambangkan auth.uid() dari Supabase admin
+
+  questions    Question[]
+  participants Participant[]
+
+  @@map("exams")
+}
+
+enum QuestionType {
+  PG
+  ESSAY
+}
+
+model Question {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  examId            String       @db.Uuid
+  exam              Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  type              QuestionType
+  content           String       @db.Text
+  options           Json?        // Menyimpan array string/objek pilihan ganda
+  correctAnswer     String?      // Indeks atau teks jawaban yang benar
+  pointCorrect      Int          @default(1)
+  pointWrong        Int          @default(0)
+  bonusPerSecond    Float        @default(0) // Tambahan poin per detik tersisa
+  timeLimitSeconds  Int          @default(60)
+  imageUrl          String?      @db.Text
+  createdAt         DateTime     @default(now())
+
+  answers           ParticipantAnswer[]
+
+  @@map("questions")
+}
+
+enum ParticipantStatus {
+  ONGOING
+  SUBMITTED
+}
+
+model Participant {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  examId      String            @db.Uuid
+  exam        Exam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  name        String
+  status      ParticipantStatus @default(ONGOING)
+  violations  Int               @default(0) // Jumlah riwayat kecurangan
+  totalScore  Float             @default(0)
+  joinedAt    DateTime          @default(now())
+
+  answers     ParticipantAnswer[]
+
+  @@map("participants")
+}
+
+enum AnswerStatus {
+  SELESAI
+  RAGU
+  KOSONG
+}
+
+model ParticipantAnswer {
+  id                   String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  participantId        String       @db.Uuid
+  participant          Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  questionId           String       @db.Uuid
+  question             Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerText           String?      @db.Text
+  statusFlag           AnswerStatus @default(KOSONG)
+  isFlagged            Boolean      @default(false) // Ditandai ragu-ragu
+  timeRemainingSeconds Int?
+  isCorrect            Boolean?     // Bisa null untuk essay yang belum dinilai
+  scoreEarned          Float        @default(0)
+  updatedAt            DateTime     @updatedAt
+
+  @@unique([participantId, questionId])
+  @@map("participant_answers")
+}

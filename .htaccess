@@ -1,0 +1,13 @@
+# ----------------------------------------------------------------------
+# Mengarahkan trafik ke Node.js Server (Port 3000)
+# Digunakan jika menjalankan server mandiri di Hostinger
+# ----------------------------------------------------------------------
+RewriteEngine On
+RewriteRule ^$ http://127.0.0.1:3000/ [P,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ http://127.0.0.1:3000/$1 [P,L]
+
+# Catatan: Jika menggunakan fitur "Setup Node.js App" bawaan cPanel/Hostinger, 
+# Anda mungkin perlu menghapus file ini karena Hostinger menggunakan Phusion Passenger 
+# yang akan membuat .htaccess-nya sendiri secara otomatis.
