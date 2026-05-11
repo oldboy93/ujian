@@ -67,8 +67,8 @@ export default async function AdminLayout({
       </main>
 
       {/* .homepage-footer from source */}
-      <footer className="w-full bg-[#3eb7b3] text-white text-center py-4 text-[0.9rem] tracking-[0.5px] z-50">
-        © {new Date().getFullYear()} Rumah Sakit Annisa — Mendampingi Sedekat Sahabat
+      <footer className="w-full bg-[#3eb7b3] text-white text-center py-4 text-[0.9rem] font-bold tracking-[0.5px] z-50">
+        © 2026. RSIA Annisa Pekanbaru. Sistem Manajemen Ujian Terpadu by UAY.
       </footer>
     </div>
   );

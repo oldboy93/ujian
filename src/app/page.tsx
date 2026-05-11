@@ -86,7 +86,7 @@ export default function Home() {
       <footer className="py-6 relative z-10 border-t border-black/[0.02] bg-white/40">
         <div className="container mx-auto px-6 flex justify-center items-center">
           <p className="text-sm font-medium text-[#94a3b8]">
-            © {new Date().getFullYear()} Rumah Sakit Annisa. Sistem Manajemen Penilaian Terpadu.
+            © 2026. RSIA Annisa Pekanbaru. Sistem Manajemen Ujian Terpadu by UAY.
           </p>
         </div>
       </footer>

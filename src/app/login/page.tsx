@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Lock, Eye } from "lucide-react";
+import { Mail, Lock, Eye, ArrowLeft } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { LoginSubmitButton } from "@/components/login/LoginSubmitButton";
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
@@ -28,6 +29,11 @@ export default async function LoginPage(props: {
         <div className="w-full md:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center items-center bg-[#F8F9FB]">
           <div className="w-full max-w-sm flex flex-col">
             
+            <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-[#2563eb] text-xs font-bold transition-colors mb-6 self-start">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Kembali ke Beranda
+            </Link>
+
             <div className="text-center space-y-2 mb-10">
               <h1 className="text-3xl font-bold text-[#1f2937] tracking-tight">Halo, Sahabat!</h1>
               <p className="text-slate-500 text-[0.925rem]">Masuk untuk mengakses Dashboard Ujian</p>

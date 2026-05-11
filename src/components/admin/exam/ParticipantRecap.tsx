@@ -295,6 +295,16 @@ export function ParticipantRecap({ participants, maxViolations, questions }: Par
                         );
                      })}
                   </div>
+                  
+                  <div className="p-6 bg-white border-t border-slate-100 flex justify-end sticky bottom-0 z-10 mt-auto">
+                     <Button 
+                        variant="secondary" 
+                        className="font-bold text-[#1e293b] bg-[#f1f5f9] hover:bg-[#e2e8f0] rounded-xl px-8" 
+                        onClick={() => setOpen(false)}
+                     >
+                        Tutup Evaluasi
+                     </Button>
+                  </div>
                </>
             )}
          </DialogContent>
