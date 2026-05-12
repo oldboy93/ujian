@@ -16,12 +16,15 @@ import {
   Save,
   ArrowRight,
   ArrowLeft,
-  ListFilter
+  ListFilter,
+  Printer,
+  Award
 } from "lucide-react";
 import { updateEssayScore } from "@/app/exam/actions";
 import { getParticipantAnswers } from "@/app/admin/exams/[id]/actions";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import Link from "next/link";
 
 type ParticipantWithAnswers = Participant & {
   answers?: ParticipantAnswer[];
@@ -328,11 +331,29 @@ export function ParticipantRecap({ participants, maxViolations, questions }: Par
     );
   }
 
+  const params = useParams();
+  const examId = params?.id as string;
+
   // ==========================================================================
   // VIEW 1: TABEL DAFTAR PESERTA (HALAMAN UTAMA)
   // ==========================================================================
   return (
-    <div className="bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden animate-in fade-in duration-500">
+    <div className="flex flex-col gap-4 animate-in fade-in duration-500">
+      {/* GLOBAL REPORT ACTIONS */}
+      <div className="flex justify-end items-center px-1">
+         <Button 
+            asChild
+            variant="outline"
+            className="h-11 rounded-xl gap-2.5 font-black text-sm text-white bg-[#1e293b] hover:bg-black border-0 shadow-md hover:shadow-lg transition-all"
+         >
+            <Link href={`/admin/exams/${examId}/report`} target="_blank">
+               <Printer className="h-4 w-4 text-[#3eb7b3]" />
+               Cetak Laporan Rekapitulasi
+            </Link>
+         </Button>
+      </div>
+
+      <div className="bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -399,21 +420,50 @@ export function ParticipantRecap({ participants, maxViolations, questions }: Par
                      </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                     <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-9 gap-2 rounded-xl border-slate-200 font-bold text-slate-600 hover:bg-[#3eb7b3] hover:text-white hover:border-[#3eb7b3] transition-all"
-                        onClick={() => handleOpenEvaluation(p)}
-                     >
-                        <Eye className="h-3.5 w-3.5" />
-                        Beri Nilai
-                     </Button>
+                     <div className="flex items-center justify-center gap-2">
+                        <Button 
+                           variant="outline" 
+                           size="sm" 
+                           className="h-9 gap-2 rounded-xl border-slate-200 font-bold text-slate-600 hover:bg-[#3eb7b3] hover:text-white hover:border-[#3eb7b3] transition-all"
+                           onClick={() => handleOpenEvaluation(p)}
+                        >
+                           <Eye className="h-3.5 w-3.5" />
+                           Beri Nilai
+                        </Button>
+                        {p.status === "SUBMITTED" && (
+                           <>
+                              <Button 
+                                 asChild
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="h-9 gap-2 rounded-xl border-dashed border-slate-300 font-bold text-[#1e293b] hover:bg-[#1e293b] hover:text-white hover:border-[#1e293b] transition-all shadow-sm"
+                              >
+                                 <Link href={`/admin/exams/${examId}/certificate/${p.id}`} target="_blank">
+                                    <Award className="h-3.5 w-3.5 text-[#3eb7b3]" />
+                                    Sertifikat
+                                 </Link>
+                              </Button>
+                              <Button 
+                                 asChild
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="h-9 gap-2 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all shadow-sm"
+                              >
+                                 <Link href={`/admin/exams/${examId}/participant-report/${p.id}`} target="_blank">
+                                    <FileText className="h-3.5 w-3.5 text-[#3eb7b3]" />
+                                    Report
+                                 </Link>
+                              </Button>
+                           </>
+                        )}
+                     </div>
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );
